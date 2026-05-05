@@ -1,16 +1,16 @@
 class config:
        
     class Redis:
-        # host="pollux_redis"
-        # port=6379
-        host="localhost"
-        port=5031
+        host="pollux_redis"
+        port=6379
+        # host="localhost"
+        # port=5031
       
     class postgres:
-        # host="pollux_postgres"
-        # port=5432
-        host="localhost"
-        port=5433
+        host="pollux_postgres"
+        port=5432
+        # host="localhost"
+        # port=5433
         user_name="pollux_user"
         password="pollux_pass"
         db_name="pollux_db"

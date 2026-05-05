@@ -2,12 +2,18 @@ import datetime
 from typing import Annotated, Dict, List, Optional
 from pydantic import BaseModel, EmailStr, Field
 
+class requesterDetails(BaseModel):
+    name: str
+    version: str
+    timestamp: datetime.datetime
+    requestedby: Optional[str] = None
 
 class Data(BaseModel):
     phone: str = Field(..., max_length=10, pattern=r'^\d{10}$')
 
 class sendOtp(BaseModel):
     requestname: Annotated[str, Field(pattern=r"^[a-zA-Z_ ]+$")]
+    requester: requesterDetails
     data: Data
      
 

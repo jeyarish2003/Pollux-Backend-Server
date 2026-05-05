@@ -20,7 +20,7 @@ def generate_access_token(user:dict) -> str:
     }
 
     token = jwt.encode(payload, config.jwt.SECRET_KEY,algorithm=config.jwt.ALGORITHM)
-    return token
+    return token,payload["exp"]
 
 
 def generate_refresh_token(user: dict) -> str:
@@ -34,7 +34,7 @@ def generate_refresh_token(user: dict) -> str:
 
     token = jwt.encode(payload, config.jwt.SECRET_KEY, algorithm=config.jwt.ALGORITHM)
     logger.debug(f"Token:{token}")
-    return token
+    return token,payload["exp"]
 
 
 def decode_token(token):

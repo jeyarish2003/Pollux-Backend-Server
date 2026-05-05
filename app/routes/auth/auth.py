@@ -13,7 +13,7 @@ from common.utils.date_helper import get_utc_datetime
 from common.utils.logger import Logger
 from dependencies.dependencies import postgres_helper
 
-router = APIRouter(tags=['Auth'])
+router = APIRouter(prefix='/auth',tags=['Auth'])
 
 logger = Logger()
 redis = Redis()
@@ -21,39 +21,39 @@ redis = Redis()
 
         
 @router.post("/sendotp")
-async def verify_phone(background_tasks: BackgroundTasks,payload: sendOtp = Body(example=sendOtpRequestJson)):
-    logger.info(f"sendOtp ::: Request received : phone={payload.data.phone}")
+async def verify_mobile(background_tasks: BackgroundTasks,payload: sendOtp = Body(example=sendOtpRequestJson)):
+    logger.info(f"sendOtp ::: Request received : mobile={payload.data.mobile}")
 
     try:
         
         error_details=None
-        verify_phone_query = """
+        verify_mobile_query = """
             SELECT first_name,last_name,user_id
             FROM users
-            WHERE phone = $1 AND is_active = TRUE
+            WHERE mobile = $1 AND is_active = TRUE
         """
-        logger.info(f"sendOtp ::: Executing query : phone={payload.data.phone}")
+        logger.info(f"sendOtp ::: Executing query : mobile={payload.data.mobile}")
 
-        verify_phone_result = await postgres_helper.execute(verify_phone_query,payload.data.phone,fetch=True)
+        verify_mobile_result = await postgres_helper.execute(verify_mobile_query,payload.data.mobile,fetch=True)
 
-        if not verify_phone_result:
-            logger.warning(f"sendOtp ::: phone not found or inactive : phone={payload.data.phone}")
-            error_details=getPlatformException(401,payload.requestname,f"phone:{payload.data.phone} does not exist")
+        if not verify_mobile_result:
+            logger.warning(f"sendOtp ::: mobile not found or inactive : mobile={payload.data.mobile}")
+            error_details=getPlatformException(401,payload.requestname,f"mobile:{payload.data.mobile} does not exist")
             raise HTTPException(status_code=401,detail=error_details)
 
-        logger.info(f"sendOtp ::: User found : user_name {verify_phone_result[0]['first_name']} {verify_phone_result[0]['last_name']}, user_id={verify_phone_result[0]['user_id']}")
+        logger.info(f"sendOtp ::: User found : user_name {verify_mobile_result[0]['first_name']} {verify_mobile_result[0]['last_name']}, user_id={verify_mobile_result[0]['user_id']}")
 
         otp=generate_otp()
         hashed_otp =bcrypt.hashpw(otp.encode(), bcrypt.gensalt())
 
-        redis.insert_data(key=f"otp:{payload.data.phone}",value=hashed_otp,expiry=300)
+        redis.insert_data(key=f"otp:{payload.data.mobile}",value=hashed_otp,expiry=300)
     #     background_tasks.add_task(
     #     sendmail,
     #     frm="",
-    #     to=payload.data.phone,
+    #     to=payload.data.mobile,
     #     template_key="send_otp",
     #     context={
-    #             "employee_name": verify_phone_result[0]['first_name']+" "+verify_phone_result[0]['last_name'],
+    #             "employee_name": verify_mobile_result[0]['first_name']+" "+verify_mobile_result[0]['last_name'],
     #             "otp": otp,
     #     }
     # )
@@ -65,7 +65,7 @@ async def verify_phone(background_tasks: BackgroundTasks,payload: sendOtp = Body
             timestamp=get_utc_datetime(),
         ),
         status="Success",
-        message=f"OTP Sent To {payload.data.phone} Successfully",
+        message=f"OTP Sent To {payload.data.mobile} Successfully",
         
         )
 
@@ -87,7 +87,7 @@ async def verify_phone(background_tasks: BackgroundTasks,payload: sendOtp = Body
 
 @router.post("/verifyotp")
 async def verify_otp(request:Request,response: Response,x_device_type: str = Header(default="web"),payload: verifyOtp = Body(example=verifyOtpRequestJson)):
-    logger.info(f"verifyOtp ::: Request received : phone={payload.data.phone}")
+    logger.info(f"verifyOtp ::: Request received : mobile={payload.data.mobile}")
 
     try:
         
@@ -103,25 +103,25 @@ async def verify_otp(request:Request,response: Response,x_device_type: str = Hea
         # Can contain multiple IPs: client, proxy1, proxy2
             
         verify_otp_query = """
-            SELECT first_name,last_name,phone,role_id,user_id
+            SELECT first_name,last_name,mobile,role_id,user_id,gender,birthdate,email,preferences,title
             FROM users
-            WHERE phone = $1 AND is_active = TRUE
+            WHERE mobile = $1 AND is_active = TRUE
         """
-        logger.debug(f"verifyOtp ::: Executing query : phone={payload.data.phone}")
+        logger.debug(f"verifyOtp ::: Executing query : mobile={payload.data.mobile}")
 
-        verify_otp_result = await postgres_helper.execute(verify_otp_query,payload.data.phone,fetch=True)
+        verify_otp_result = await postgres_helper.execute(verify_otp_query,payload.data.mobile,fetch=True)
 
         if not verify_otp_result:
-            logger.warning(f"verifyOtp ::: phone not found or inactive : phone={payload.data.phone}")
-            error_details=getPlatformException(401,payload.requestname,f"phone:{payload.data.phone} does not exist",code=2)
+            logger.warning(f"verifyOtp ::: mobile not found or inactive : mobile={payload.data.mobile}")
+            error_details=getPlatformException(401,payload.requestname,f"mobile:{payload.data.mobile} does not exist",code=2)
             raise HTTPException(status_code=401,detail=error_details)
 
         logger.debug(f"verifyOtp ::: User found : user_id={verify_otp_result[0]['user_id']}")
 
-        # if bcrypt.checkpw(payload.data.otp.encode(), redis.retrieve_data(key=f"otp:{payload.data.phone}").encode()):
-        if payload.data.otp == "1234":
+        # if bcrypt.checkpw(payload.data.otp.encode(), redis.retrieve_data(key=f"otp:{payload.data.mobile}").encode()):
+        if payload.data.otp == "123456":
 
-            logger.info(f"verifyOtp ::: OTP verified successfully : phone={payload.data.phone}")
+            logger.info(f"verifyOtp ::: OTP verified successfully : mobile={payload.data.mobile}")
             
             user_role=await get_userrole(verify_otp_result[0]['role_id'])
 
@@ -130,13 +130,13 @@ async def verify_otp(request:Request,response: Response,x_device_type: str = Hea
                 "user_id":str(verify_otp_result[0]['user_id']),
                 "role_id": str(verify_otp_result[0]['role_id']),
                 "user_role":user_role,
-                "phone_id":payload.data.phone
+                "mobile_id":payload.data.mobile
             }
 
 
-            access_token=generate_access_token(user_details)
-            refresh_token=generate_refresh_token(user_details)
-           
+            access_token,access_token_expiry=generate_access_token(user_details)
+            refresh_token,refresh_token_expiry=generate_refresh_token(user_details)
+
             user_agent=request.headers.get("user-agent")
             
             # await insert_user_session(user_id=verify_otp_result[0]['employee_id'],company_id=verify_otp_result[0]['company_id'],refresh_token=hashlib.sha256(refresh_token.encode('utf-8')).hexdigest(),created_by=verify_otp_result[0]['first_name'],client_ip=client_ip,user_agent=user_agent,device=x_device_type)
@@ -148,25 +148,33 @@ async def verify_otp(request:Request,response: Response,x_device_type: str = Hea
                 timestamp=get_utc_datetime(),
             ),
             status="Success",
-            message=f"phone:{payload.data.phone} verified Successfully",
+            message=f"mobile:{payload.data.mobile} verified Successfully",
             data={
                 "accesstoken": access_token,
                 "refreshtoken": refresh_token,
+                "accesstokenexpires": access_token_expiry,
+                "refreshtokenexpires": refresh_token_expiry,
                 "tokentype": "Bearer",
                 "userrole":user_role,
                 "roleid":verify_otp_result[0]['role_id'],
-                "userid":verify_otp_result[0]['user_id'],
-                "phone":payload.data.phone,
-                "username":verify_otp_result[0]['first_name']+" "+verify_otp_result[0]['last_name']
+                "id":verify_otp_result[0]['user_id'],
+                "mobile":payload.data.mobile,
+                "firstname":verify_otp_result[0]['first_name'],
+                "lastname":verify_otp_result[0]['last_name'],
+                "title":verify_otp_result[0]['title'],
+                "gender":verify_otp_result[0]['gender'],
+                "preference":json.loads(verify_otp_result[0]['preferences']),
+                "birthdate":verify_otp_result[0]['birthdate'].isoformat(),
+                "email":verify_otp_result[0]['email'],
             }
             )
 
 
         else:
             logger.warning(
-                f"verifyOtp ::: Invalid password : phone={payload.data.phone}"
+                f"verifyOtp ::: Invalid password : mobile={payload.data.mobile}"
             )   
-            error_details=getPlatformException(401,payload.requestname,f"Password is incorrect for phone:{payload.data.phone}",code=3)
+            error_details=getPlatformException(401,payload.requestname,f"Password is incorrect for mobile:{payload.data.mobile}",code=3)
             raise HTTPException(status_code=401,detail=error_details)
         
 
